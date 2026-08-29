@@ -12,6 +12,9 @@ function CartContent() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Any productId in here is unchecked; absent = selected. This way newly
+  // added cart items default to selected without needing to sync a list.
+  const [deselected, setDeselected] = useState<Set<string>>(new Set());
 
   const rows = useMemo(
     () =>
@@ -19,19 +22,34 @@ function CartContent() {
         .map((c) => {
           const p = productById(c.productId);
           if (!p) return null;
-          return { ...c, product: p };
+          return { ...c, product: p, selected: !deselected.has(c.productId) };
         })
         .filter((r): r is NonNullable<typeof r> => r !== null),
-    [state.cart]
+    [state.cart, deselected]
   );
 
-  const total = rows.reduce((sum, r) => sum + r.product.price * r.qty, 0);
+  const selectedRows = rows.filter((r) => r.selected);
+  const total = selectedRows.reduce((sum, r) => sum + r.product.price * r.qty, 0);
+  const allSelected = rows.length > 0 && selectedRows.length === rows.length;
+
+  function toggle(productId: string) {
+    setDeselected((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setDeselected(allSelected ? new Set(rows.map((r) => r.productId)) : new Set());
+  }
 
   async function handleOrder() {
     setError(null);
     setBusy(true);
     try {
-      const result = await createOrder();
+      const result = await createOrder(selectedRows.map((r) => r.productId));
       if (result) router.push(`/checkout?orderId=${encodeURIComponent(result.orderId)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "주문 생성 중 오류가 발생했습니다.");
@@ -54,11 +72,29 @@ function CartContent() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 text-sm text-neutral-600">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              className="h-4 w-4 accent-emerald-500"
+            />
+            전체 선택 ({selectedRows.length}/{rows.length})
+          </label>
+
           {rows.map((r) => (
             <div
               key={r.productId}
-              className="flex items-center gap-4 rounded-xl border border-neutral-200 bg-white p-4"
+              className={`flex items-center gap-4 rounded-xl border bg-white p-4 ${
+                r.selected ? "border-neutral-200" : "border-neutral-100 opacity-50"
+              }`}
             >
+              <input
+                type="checkbox"
+                checked={r.selected}
+                onChange={() => toggle(r.productId)}
+                className="h-4 w-4 accent-emerald-500"
+              />
               <div className="text-3xl">{r.product.imageEmoji}</div>
               <div className="flex-1">
                 <div className="font-medium">{r.product.name}</div>
@@ -66,13 +102,23 @@ function CartContent() {
                   {r.product.price.toLocaleString()}원
                 </div>
               </div>
-              <input
-                type="number"
-                min={1}
-                value={r.qty}
-                onChange={(e) => updateCartQty(r.productId, Number(e.target.value))}
-                className="w-16 rounded-lg border border-neutral-300 px-2 py-1 text-center"
-              />
+              <div className="flex items-center gap-1 rounded-lg border border-neutral-300">
+                <button
+                  onClick={() => updateCartQty(r.productId, r.qty - 1)}
+                  aria-label="수량 줄이기"
+                  className="flex h-8 w-8 items-center justify-center text-neutral-500 hover:bg-neutral-100"
+                >
+                  −
+                </button>
+                <span className="w-8 text-center text-sm font-medium">{r.qty}</span>
+                <button
+                  onClick={() => updateCartQty(r.productId, r.qty + 1)}
+                  aria-label="수량 늘리기"
+                  className="flex h-8 w-8 items-center justify-center text-neutral-500 hover:bg-neutral-100"
+                >
+                  +
+                </button>
+              </div>
               <div className="w-24 text-right font-semibold">
                 {(r.product.price * r.qty).toLocaleString()}원
               </div>
@@ -88,13 +134,15 @@ function CartContent() {
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="mt-4 flex items-center justify-between rounded-xl bg-neutral-50 p-5">
-            <span className="text-lg font-bold">총 {total.toLocaleString()}원</span>
+            <span className="text-lg font-bold">
+              선택 {selectedRows.length}개 · 총 {total.toLocaleString()}원
+            </span>
             <button
               onClick={handleOrder}
-              disabled={busy}
+              disabled={busy || selectedRows.length === 0}
               className="rounded-full bg-emerald-500 px-6 py-3 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
             >
-              {busy ? "처리 중..." : "주문하기"}
+              {busy ? "처리 중..." : "선택 상품 주문하기"}
             </button>
           </div>
         </div>

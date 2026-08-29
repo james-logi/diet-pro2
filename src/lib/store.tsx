@@ -58,7 +58,9 @@ interface StoreApi {
   addToCart: (productId: string, qty?: number) => boolean;
   removeFromCart: (productId: string) => void;
   updateCartQty: (productId: string, qty: number) => void;
-  createOrder: () => Promise<{ orderId: string; totalPrice: number; orderName: string } | null>;
+  createOrder: (
+    productIds?: string[]
+  ) => Promise<{ orderId: string; totalPrice: number; orderName: string } | null>;
   cancelOrder: (orderId: string, cancelReason?: string) => Promise<void>;
 }
 
@@ -198,10 +200,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }));
     },
 
-    createOrder: async () => {
-      if (state.cart.length === 0) return null;
-      const result = await api.createOrder(state.cart);
-      setState((s) => ({ ...s, cart: [] }));
+    createOrder: async (productIds) => {
+      const items = productIds
+        ? state.cart.filter((c) => productIds.includes(c.productId))
+        : state.cart;
+      if (items.length === 0) return null;
+      const result = await api.createOrder(items);
+      const orderedIds = new Set(items.map((i) => i.productId));
+      setState((s) => ({ ...s, cart: s.cart.filter((c) => !orderedIds.has(c.productId)) }));
       return result;
     },
 

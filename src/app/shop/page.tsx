@@ -90,23 +90,55 @@ export default function ShopPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {filtered.map((p) => (
           <div
             key={p.id}
             className="flex flex-col rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
           >
-            <div className="text-4xl">{p.imageEmoji}</div>
-            <div className="mt-3 flex items-center gap-2 text-xs">
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-600">
-                {CATEGORY_LABEL[p.category]}
-              </span>
-              {p.manufacturer && (
-                <span className="text-neutral-400">{p.manufacturer}</span>
-              )}
+            <div className="flex items-start gap-3">
+              <div className="text-4xl">{p.imageEmoji}</div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-600">
+                    {CATEGORY_LABEL[p.category]}
+                  </span>
+                  {p.manufacturer && (
+                    <span className="text-neutral-400">{p.manufacturer}</span>
+                  )}
+                </div>
+                <h3 className="mt-1 font-semibold">{p.name}</h3>
+                <p className="mt-0.5 text-sm text-neutral-500">{p.description}</p>
+              </div>
             </div>
-            <h3 className="mt-2 font-semibold">{p.name}</h3>
-            <p className="mt-1 flex-1 text-sm text-neutral-500">{p.description}</p>
+
+            <div className="mt-4 rounded-xl bg-neutral-50 p-3">
+              <div className="flex items-baseline justify-between text-xs font-semibold text-neutral-500">
+                <span>구성 · {p.servingInfo}</span>
+                {p.kcal !== undefined && (
+                  <span className="text-neutral-400">{p.kcal}kcal</span>
+                )}
+              </div>
+              <ul className="mt-2 flex flex-col gap-1">
+                {p.composition.map((item, i) => (
+                  <li
+                    key={i}
+                    className="flex items-baseline justify-between gap-2 text-sm text-neutral-700"
+                  >
+                    <span>
+                      {item.name}
+                      {item.brand && (
+                        <span className="ml-1 text-xs text-neutral-400">({item.brand})</span>
+                      )}
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap text-xs text-neutral-500">
+                      {item.amount}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
             <div className="mt-4 flex items-center justify-between">
               <span className="font-bold">{p.price.toLocaleString()}원</span>
               <button

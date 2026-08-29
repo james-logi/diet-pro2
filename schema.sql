@@ -15,9 +15,10 @@ CREATE TABLE IF NOT EXISTS weight_entries (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
   weight_kg REAL NOT NULL,
-  measured_at TEXT NOT NULL
+  measured_at TEXT NOT NULL,
+  date TEXT NOT NULL DEFAULT ''
 );
-CREATE INDEX IF NOT EXISTS idx_weight_entries_user ON weight_entries(user_id, measured_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_weight_entries_user_date ON weight_entries(user_id, date);
 
 CREATE TABLE IF NOT EXISTS diet_goals (
   id TEXT PRIMARY KEY,

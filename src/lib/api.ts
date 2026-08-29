@@ -70,7 +70,7 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  updateWeight: (weightKg: number) =>
+  updateWeight: (weightKg: number, date?: string) =>
     request<{
       weightHistory: WeightEntry[];
       goal: DietGoal | null;
@@ -78,7 +78,7 @@ export const api = {
       gifts: Gift[];
     }>("/api/weight", {
       method: "POST",
-      body: JSON.stringify({ weightKg }),
+      body: JSON.stringify({ weightKg, date }),
     }),
 
   saveSnapshot: (note?: string) =>

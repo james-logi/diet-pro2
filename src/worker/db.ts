@@ -49,7 +49,7 @@ export async function getUserById(db: D1Database, id: string) {
 export async function getWeightHistory(db: D1Database, userId: string): Promise<WeightEntry[]> {
   const { results } = await db
     .prepare(
-      "SELECT id, weight_kg as weightKg, measured_at as measuredAt FROM weight_entries WHERE user_id = ? ORDER BY measured_at ASC"
+      "SELECT id, weight_kg as weightKg, measured_at as measuredAt, date FROM weight_entries WHERE user_id = ? ORDER BY date ASC"
     )
     .bind(userId)
     .all<WeightEntry>();

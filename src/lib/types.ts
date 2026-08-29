@@ -9,7 +9,8 @@ export interface Profile {
 export interface WeightEntry {
   id: string;
   weightKg: number;
-  measuredAt: string; // ISO date
+  measuredAt: string; // ISO datetime
+  date: string; // YYYY-MM-DD, unique per user (one entry per day)
 }
 
 export type GoalStatus = "in_progress" | "achieved" | "abandoned";
@@ -27,6 +28,12 @@ export interface DietGoal {
 export type ProductCategory = "diet_meal" | "supplement";
 export type PlanPhase = "early" | "mid" | "late";
 
+export interface CompositionItem {
+  name: string;
+  brand?: string;
+  amount: string;
+}
+
 export interface Product {
   id: string;
   category: ProductCategory;
@@ -36,6 +43,9 @@ export interface Product {
   price: number;
   imageEmoji: string;
   suitablePhase: PlanPhase;
+  servingInfo: string; // e.g. "1회 제공량 기준" or "1끼 구성"
+  kcal?: number;
+  composition: CompositionItem[];
 }
 
 export interface CartItem {

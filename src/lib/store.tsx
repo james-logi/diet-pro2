@@ -53,7 +53,7 @@ interface StoreApi {
     targetWeightKg: number,
     durationMonths: number
   ) => Promise<void>;
-  updateWeight: (weightKg: number) => Promise<{ giftIssued: boolean }>;
+  updateWeight: (weightKg: number, date?: string) => Promise<{ giftIssued: boolean }>;
   saveSnapshot: (note?: string) => Promise<void>;
   addToCart: (productId: string, qty?: number) => boolean;
   removeFromCart: (productId: string) => void;
@@ -156,8 +156,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, goal, weightHistory }));
     },
 
-    updateWeight: async (weightKg) => {
-      const { weightHistory, goal, giftIssued, gifts } = await api.updateWeight(weightKg);
+    updateWeight: async (weightKg, date) => {
+      const { weightHistory, goal, giftIssued, gifts } = await api.updateWeight(weightKg, date);
       setState((s) => ({ ...s, weightHistory, goal, gifts }));
       return { giftIssued };
     },

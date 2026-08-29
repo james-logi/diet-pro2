@@ -10,6 +10,15 @@ export const PRODUCTS: Product[] = [
     price: 39000,
     imageEmoji: "🥗",
     suitablePhase: "early",
+    servingInfo: "1끼 구성 (총 5끼 배송)",
+    kcal: 358,
+    composition: [
+      { name: "닭가슴살", brand: "하림", amount: "100g" },
+      { name: "발아현미밥", amount: "100g" },
+      { name: "브로콜리·당근 무침", amount: "80g" },
+      { name: "삶은 달걀", amount: "1개(50g)" },
+      { name: "저염 강된장", amount: "20g" },
+    ],
   },
   {
     id: "meal-early-2",
@@ -19,6 +28,14 @@ export const PRODUCTS: Product[] = [
     price: 32000,
     imageEmoji: "🥤",
     suitablePhase: "early",
+    servingInfo: "1포(25g) 기준, 물 200ml에 희석",
+    kcal: 152,
+    composition: [
+      { name: "분리대두단백", brand: "그린데이", amount: "12g" },
+      { name: "이눌린 식이섬유", amount: "5g" },
+      { name: "비타민·무기질 프리믹스", amount: "3g" },
+      { name: "저칼로리 감미료(스테비아)", amount: "0.5g" },
+    ],
   },
   {
     id: "supp-early-1",
@@ -29,6 +46,14 @@ export const PRODUCTS: Product[] = [
     price: 21000,
     imageEmoji: "💊",
     suitablePhase: "early",
+    servingInfo: "1일 1정 기준 (60정, 60일분)",
+    composition: [
+      { name: "비타민 B1(티아민)", amount: "25mg" },
+      { name: "비타민 B2(리보플라빈)", amount: "25mg" },
+      { name: "비타민 B6(피리독신)", amount: "20mg" },
+      { name: "비타민 B12(코발라민)", amount: "100㎍" },
+      { name: "나이아신아마이드", amount: "30mg" },
+    ],
   },
 
   // 중기 (본격기)
@@ -40,6 +65,14 @@ export const PRODUCTS: Product[] = [
     price: 45000,
     imageEmoji: "🍱",
     suitablePhase: "mid",
+    servingInfo: "1끼 구성 (총 5끼 배송)",
+    kcal: 412,
+    composition: [
+      { name: "닭가슴살", brand: "하림", amount: "150g" },
+      { name: "현미퀴노아밥", amount: "80g" },
+      { name: "구운 파프리카·애호박", amount: "100g" },
+      { name: "아몬드", amount: "10g" },
+    ],
   },
   {
     id: "meal-mid-2",
@@ -49,6 +82,14 @@ export const PRODUCTS: Product[] = [
     price: 18000,
     imageEmoji: "🥣",
     suitablePhase: "mid",
+    servingInfo: "1회 제공량 60g 기준 (총 500g, 약 8회분)",
+    kcal: 246,
+    composition: [
+      { name: "압착 귀리(오트밀)", amount: "40g" },
+      { name: "유청단백파우더", brand: "매일유업 셀렉스", amount: "10g" },
+      { name: "저당 크랜베리", amount: "5g" },
+      { name: "아몬드 슬라이스", amount: "5g" },
+    ],
   },
   {
     id: "supp-mid-1",
@@ -59,6 +100,13 @@ export const PRODUCTS: Product[] = [
     price: 42000,
     imageEmoji: "🧃",
     suitablePhase: "mid",
+    servingInfo: "1회 제공량 30g(2스쿱) 기준, 900g/30회분",
+    kcal: 118,
+    composition: [
+      { name: "분리유청단백(WPI)", amount: "25g (단백질 함량 92%)" },
+      { name: "코코아파우더", amount: "2g" },
+      { name: "천연 감미료(수크랄로스)", amount: "0.1g" },
+    ],
   },
   {
     id: "supp-mid-2",
@@ -69,6 +117,12 @@ export const PRODUCTS: Product[] = [
     price: 29000,
     imageEmoji: "🌿",
     suitablePhase: "mid",
+    servingInfo: "1일 2캡슐 기준 (60캡슐, 30일분)",
+    composition: [
+      { name: "가르시니아캄보지아 추출물(HCA 60%)", amount: "500mg" },
+      { name: "L-카르니틴 타르트레이트", amount: "100mg" },
+      { name: "녹차추출물(카테킨 40%)", amount: "50mg" },
+    ],
   },
 
   // 후기 (유지기)
@@ -80,6 +134,14 @@ export const PRODUCTS: Product[] = [
     price: 41000,
     imageEmoji: "🍲",
     suitablePhase: "late",
+    servingInfo: "1끼 구성 (총 5끼 배송)",
+    kcal: 389,
+    composition: [
+      { name: "연어살", brand: "노르웨이산", amount: "120g" },
+      { name: "현미밥", amount: "100g" },
+      { name: "제철 나물 반찬", amount: "100g" },
+      { name: "미소된장국", amount: "150ml" },
+    ],
   },
   {
     id: "supp-late-1",
@@ -90,6 +152,12 @@ export const PRODUCTS: Product[] = [
     price: 25000,
     imageEmoji: "🍀",
     suitablePhase: "late",
+    servingInfo: "1일 1정 + 1캡슐 기준 (60일분)",
+    composition: [
+      { name: "종합비타민·미네랄 정", amount: "1정 (13종)" },
+      { name: "오메가-3(EPA·DHA)", amount: "500mg" },
+      { name: "마그네슘", amount: "100mg" },
+    ],
   },
 ];
 

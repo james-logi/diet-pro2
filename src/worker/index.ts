@@ -167,6 +167,27 @@ app.put("/api/profile", async (c) => {
 
 // ---------- Goal / weight / snapshot ----------
 
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isValidDateStr(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+// One weight_entries row per (user, date): re-logging a date overwrites it
+// instead of piling up duplicate rows, so a day's entry is always editable.
+function upsertWeightEntryStmt(db: D1Database, userId: string, weightKg: number, date: string) {
+  const measuredAt = `${date}T12:00:00.000Z`;
+  return db
+    .prepare(
+      `INSERT INTO weight_entries (id, user_id, weight_kg, measured_at, date)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, date) DO UPDATE SET weight_kg = excluded.weight_kg, measured_at = excluded.measured_at`
+    )
+    .bind(crypto.randomUUID(), userId, weightKg, measuredAt, date);
+}
+
 app.post("/api/goal", async (c) => {
   const userId = c.get("userId");
   const { startWeightKg, targetWeightKg, durationMonths } = await c.req.json<{
@@ -197,9 +218,7 @@ app.post("/api/goal", async (c) => {
       targetDate.toISOString(),
       startDate.toISOString()
     ),
-    c.env.DB.prepare(
-      `INSERT INTO weight_entries (id, user_id, weight_kg, measured_at) VALUES (?, ?, ?, ?)`
-    ).bind(crypto.randomUUID(), userId, startWeightKg, startDate.toISOString()),
+    upsertWeightEntryStmt(c.env.DB, userId, startWeightKg, todayStr()),
   ]);
 
   const goal = await getLatestGoal(c.env.DB, userId);
@@ -209,23 +228,25 @@ app.post("/api/goal", async (c) => {
 
 app.post("/api/weight", async (c) => {
   const userId = c.get("userId");
-  const { weightKg } = await c.req.json<{ weightKg?: number }>();
+  const { weightKg, date } = await c.req.json<{ weightKg?: number; date?: string }>();
   if (!weightKg) return c.json({ error: "몸무게를 입력해주세요." }, 400);
+  const entryDate = date && isValidDateStr(date) ? date : todayStr();
 
-  await c.env.DB.prepare(
-    `INSERT INTO weight_entries (id, user_id, weight_kg, measured_at) VALUES (?, ?, ?, ?)`
-  )
-    .bind(crypto.randomUUID(), userId, weightKg, new Date().toISOString())
-    .run();
+  await upsertWeightEntryStmt(c.env.DB, userId, weightKg, entryDate).run();
 
+  const weightHistory = await getWeightHistory(c.env.DB, userId);
   let goal = await getLatestGoal(c.env.DB, userId);
   let giftIssued = false;
 
-  if (goal && goal.status === "in_progress") {
+  // Achievement is judged on the most recent day logged, not necessarily
+  // the entry that was just edited (which may be a past-date correction).
+  const latestWeight = weightHistory[weightHistory.length - 1]?.weightKg;
+
+  if (goal && goal.status === "in_progress" && latestWeight !== undefined) {
     const achieved =
       goal.targetWeightKg <= goal.startWeightKg
-        ? weightKg <= goal.targetWeightKg
-        : weightKg >= goal.targetWeightKg;
+        ? latestWeight <= goal.targetWeightKg
+        : latestWeight >= goal.targetWeightKg;
     if (achieved) {
       await c.env.DB.batch([
         c.env.DB.prepare(`UPDATE diet_goals SET status = 'achieved' WHERE id = ?`).bind(goal.id),
@@ -247,7 +268,6 @@ app.post("/api/weight", async (c) => {
     }
   }
 
-  const weightHistory = await getWeightHistory(c.env.DB, userId);
   const gifts = await getGifts(c.env.DB, userId);
   return c.json({ weightHistory, goal, giftIssued, gifts });
 });

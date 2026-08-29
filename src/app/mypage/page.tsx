@@ -25,13 +25,15 @@ function fmtDateTime(iso: string) {
 }
 
 function MyPageContent() {
-  const { state, currentWeight, cancelOrder } = useStore();
+  const { state, currentWeight, cancelOrder, deleteOrder } = useStore();
   const { user, goal, orders, gifts } = state;
 
   const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
 
   async function handleCancel(orderId: string) {
     setError(null);
@@ -42,6 +44,20 @@ function MyPageContent() {
       setReason("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "결제 취소 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleDelete(orderId: string) {
+    setErrorId(null);
+    setBusyId(orderId);
+    try {
+      await deleteOrder(orderId);
+      setDeletingId(null);
+    } catch (err) {
+      setErrorId(orderId);
+      setError(err instanceof Error ? err.message : "주문 삭제 중 오류가 발생했습니다.");
     } finally {
       setBusyId(null);
     }
@@ -148,12 +164,23 @@ function MyPageContent() {
                 </ul>
                 <div className="mt-2 flex items-center justify-between">
                   {o.status === "결제대기" ? (
-                    <Link
-                      href={`/checkout?orderId=${encodeURIComponent(o.id)}`}
-                      className="text-xs font-semibold text-emerald-600 underline"
-                    >
-                      결제 이어하기
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={`/checkout?orderId=${encodeURIComponent(o.id)}`}
+                        className="text-xs font-semibold text-emerald-600 underline"
+                      >
+                        결제 이어하기
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setDeletingId(o.id);
+                          setErrorId(null);
+                        }}
+                        className="text-xs font-semibold text-neutral-400 underline hover:text-red-500"
+                      >
+                        삭제
+                      </button>
+                    </div>
                   ) : o.status === "결제완료" ? (
                     <button
                       onClick={() => {
@@ -172,6 +199,29 @@ function MyPageContent() {
                     총 {o.totalPrice.toLocaleString()}원
                   </div>
                 </div>
+
+                {error && errorId === o.id && (
+                  <p className="mt-1 text-xs text-red-500">{error}</p>
+                )}
+
+                {deletingId === o.id && (
+                  <div className="mt-3 flex items-center gap-2 rounded-lg bg-neutral-50 p-3">
+                    <span className="text-xs text-neutral-500">이 주문을 삭제할까요?</span>
+                    <button
+                      onClick={() => handleDelete(o.id)}
+                      disabled={busyId === o.id}
+                      className="rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                    >
+                      {busyId === o.id ? "삭제 중..." : "삭제 확정"}
+                    </button>
+                    <button
+                      onClick={() => setDeletingId(null)}
+                      className="rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100"
+                    >
+                      취소
+                    </button>
+                  </div>
+                )}
 
                 {cancelingId === o.id && (
                   <div className="mt-3 rounded-lg bg-red-50 p-3">

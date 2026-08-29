@@ -62,6 +62,7 @@ interface StoreApi {
     productIds?: string[]
   ) => Promise<{ orderId: string; totalPrice: number; orderName: string } | null>;
   cancelOrder: (orderId: string, cancelReason?: string) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
 }
 
 const EMPTY_STATE: StoreState = {
@@ -217,6 +218,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...s,
         orders: s.orders.map((o) => (o.id === order.id ? order : o)),
       }));
+    },
+
+    deleteOrder: async (orderId) => {
+      await api.deleteOrder(orderId);
+      setState((s) => ({ ...s, orders: s.orders.filter((o) => o.id !== orderId) }));
     },
   };
 

@@ -16,5 +16,8 @@
       "database_name": "diet-pro2-db",
       "database_id": "c9389e06-d7bc-45f9-bb10-d656e1ffbe5a"
     }
-  ]
+  ],
+  "ai": {
+    "binding": "AI"
+  }
 }

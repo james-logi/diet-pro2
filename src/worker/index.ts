@@ -21,6 +21,7 @@ interface Bindings {
   DB: D1Database;
   SESSION_SECRET: string;
   TOSS_WIDGET_SECRET_KEY: string;
+  AI: Ai;
 }
 
 interface Variables {
@@ -470,6 +471,45 @@ app.post("/api/orders/:id/cancel", async (c) => {
 app.get("/api/gifts", async (c) => {
   const gifts = await getGifts(c.env.DB, c.get("userId"));
   return c.json({ gifts });
+});
+
+// ---------- Workers AI: English product blurb ----------
+
+const AI_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
+
+app.post("/api/ai/product-blurb", async (c) => {
+  const { productId } = await c.req.json<{ productId?: string }>().catch(() => ({}) as { productId?: string });
+  if (!productId) return c.json({ error: "상품 정보가 없습니다." }, 400);
+
+  const product = productById(productId);
+  if (!product) return c.json({ error: "상품을 찾을 수 없습니다." }, 404);
+
+  const systemPrompt = [
+    "You write short English blurbs for a Korean online store's product listings, aimed at overseas shoppers.",
+    "Rules you must follow strictly:",
+    "1. Write no more than 3 sentences.",
+    "2. Use plain, factual language -- no hype, no exaggeration, no superlatives like 'amazing' or 'best'.",
+    "3. Only use facts explicitly given in the product name and description below.",
+    "4. Never invent or assume details that are not stated -- especially country of origin, ingredients, or certifications.",
+    "Output only the blurb text, nothing else.",
+  ].join("\n");
+
+  const userPrompt = `Product name: ${product.name}\nProduct description: ${product.description}`;
+
+  try {
+    const result = await c.env.AI.run(AI_MODEL, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 200,
+    });
+    const blurb = typeof result === "object" && result && "response" in result ? result.response : undefined;
+    if (!blurb) return c.json({ error: "생성된 내용이 없습니다." }, 502);
+    return c.json({ blurb: blurb.trim() });
+  } catch {
+    return c.json({ error: "AI 응답 생성에 실패했습니다." }, 502);
+  }
 });
 
 export default app;

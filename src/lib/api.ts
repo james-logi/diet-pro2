@@ -107,4 +107,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ cancelReason }),
     }),
+
+  productEnglishBlurb: (productId: string) =>
+    request<{ blurb: string }>("/api/ai/product-blurb", {
+      method: "POST",
+      body: JSON.stringify({ productId }),
+    }),
 };

@@ -1,69 +1,70 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { useStore } from "@/lib/store";
+import { PHASE_GUIDES } from "@/lib/plans";
+
+export default function HomePage() {
+  const { state } = useStore();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="flex flex-col gap-10">
+      <section className="rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 px-8 py-14 text-white shadow-lg">
+        <h1 className="text-3xl font-bold sm:text-4xl">
+          내 몸에 맞춘 다이어트 플랜,
+          <br />
+          목표까지 함께 갑니다.
+        </h1>
+        <p className="mt-4 max-w-xl text-emerald-50">
+          이름, 성별, 키, 몸무게만 입력하면 현재 체형과 목표 개월 수 이후의 예상
+          체형을 바로 비교하고, 단계별 운동·식단·보조식품 가이드와 맞춤 상품을
+          받아보세요.
+        </p>
+        <div className="mt-6 flex gap-3">
+          <Link
+            href="/plan"
+            className="rounded-full bg-white px-6 py-3 font-semibold text-emerald-700 shadow hover:bg-emerald-50"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            {state.goal ? "내 플랜 보기" : "플랜 시작하기"}
+          </Link>
+          <Link
+            href="/shop"
+            className="rounded-full border border-white/60 px-6 py-3 font-semibold text-white hover:bg-white/10"
           >
-            Documentation
-          </a>
+            상품 둘러보기
+          </Link>
         </div>
-      </main>
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-xl font-bold">단계별 가이드 미리보기</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {PHASE_GUIDES.map((g) => (
+            <div
+              key={g.phase}
+              className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
+            >
+              <div className="text-sm font-semibold text-emerald-600">
+                {g.title}
+              </div>
+              <div className="mt-1 text-xs text-neutral-400">{g.periodLabel}</div>
+              <p className="mt-3 text-sm text-neutral-600">{g.dietTip}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-neutral-200 bg-white p-6">
+        <h2 className="text-xl font-bold">이렇게 진행돼요</h2>
+        <ol className="mt-4 grid gap-3 text-sm text-neutral-600 sm:grid-cols-2">
+          <li>1. 신체 정보(이름/성별/키/몸무게)와 목표 체중·기간 입력</li>
+          <li>2. 현재 vs 목표 개월 수 이후 예상 체형 이미지 비교</li>
+          <li>3. 단계별 운동·식단·보조식품 가이드 확인</li>
+          <li>4. 식단·보조식품 상품 구매</li>
+          <li>5. [저장] 버튼으로 기록 저장 → 이후 히스토리에서 비교</li>
+          <li>6. 목표 체중 달성 시 축하 기프트 자동 지급</li>
+        </ol>
+      </section>
     </div>
   );
 }

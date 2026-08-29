@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "diet-pro2",
+  "compatibility_date": "2024-09-23",
+  "assets": {
+    "directory": "./out"
+  },
+  "build": {
+    "command": "npm run build"
+  }
+}

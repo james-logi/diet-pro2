@@ -8,6 +8,7 @@ const NAV = [
   { href: "/", label: "홈" },
   { href: "/plan", label: "내 플랜" },
   { href: "/shop", label: "쇼핑" },
+  { href: "/cart", label: "장바구니" },
   { href: "/history", label: "기록" },
   { href: "/mypage", label: "마이페이지" },
 ];
@@ -41,7 +42,7 @@ export default function Navbar() {
               }`}
             >
               {item.label}
-              {item.href === "/shop" && cartCount > 0 && (
+              {item.href === "/cart" && cartCount > 0 && (
                 <span className="ml-1 rounded-full bg-white/30 px-1.5 text-xs">
                   {cartCount}
                 </span>

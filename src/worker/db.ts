@@ -12,7 +12,6 @@ export interface UserRow {
   name: string;
   username: string;
   password_hash: string;
-  password_salt: string;
   gender: "M" | "F";
   height_cm: number;
   created_at: string;

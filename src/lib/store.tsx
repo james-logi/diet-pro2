@@ -55,7 +55,7 @@ interface StoreApi {
   ) => Promise<void>;
   updateWeight: (weightKg: number) => Promise<{ giftIssued: boolean }>;
   saveSnapshot: (note?: string) => Promise<void>;
-  addToCart: (productId: string, qty?: number) => void;
+  addToCart: (productId: string, qty?: number) => boolean;
   removeFromCart: (productId: string) => void;
   updateCartQty: (productId: string, qty: number) => void;
   checkout: () => Promise<string | null>;
@@ -168,6 +168,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
 
     addToCart: (productId, qty = 1) => {
+      // Cart is a precursor to checkout, which is server-enforced to be
+      // logged-in-only; block it here too so the UI doesn't build up a
+      // cart that a guest can never actually purchase.
+      if (!state.user) return false;
       setState((s) => {
         const existing = s.cart.find((c) => c.productId === productId);
         const cart = existing
@@ -177,6 +181,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           : [...s.cart, { productId, qty }];
         return { ...s, cart };
       });
+      return true;
     },
 
     removeFromCart: (productId) => {

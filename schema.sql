@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  password_salt TEXT NOT NULL,
   gender TEXT NOT NULL DEFAULT 'F',
   height_cm REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL

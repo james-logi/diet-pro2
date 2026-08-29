@@ -1,6 +1,7 @@
 import { Context, Hono, MiddlewareHandler } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
-import { hashPassword, randomHex, signSession, verifySession, verifyPassword } from "./crypto";
+import { signSession, verifySession } from "./crypto";
+import { hashPassword, verifyPassword } from "./password";
 import {
   getUserByUsername,
   getUserById,
@@ -82,14 +83,13 @@ app.post("/api/auth/signup", async (c) => {
   if (existing) return c.json({ error: "이미 사용 중인 아이디입니다." }, 409);
 
   const id = crypto.randomUUID();
-  const salt = randomHex();
-  const hash = await hashPassword(password, salt);
+  const hash = hashPassword(password);
 
   await c.env.DB.prepare(
-    `INSERT INTO users (id, name, username, password_hash, password_salt, gender, height_cm, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO users (id, name, username, password_hash, gender, height_cm, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(id, name.trim(), username.trim(), hash, salt, gender, heightCm, new Date().toISOString())
+    .bind(id, name.trim(), username.trim(), hash, gender, heightCm, new Date().toISOString())
     .run();
 
   await setSessionCookie(c, id);
@@ -104,7 +104,7 @@ app.post("/api/auth/login", async (c) => {
   const user = await getUserByUsername(c.env.DB, username.trim());
   if (!user) return c.json({ error: "아이디 또는 비밀번호가 올바르지 않습니다." }, 401);
 
-  const ok = await verifyPassword(password, user.password_salt, user.password_hash);
+  const ok = verifyPassword(password, user.password_hash);
   if (!ok) return c.json({ error: "아이디 또는 비밀번호가 올바르지 않습니다." }, 401);
 
   await setSessionCookie(c, user.id);

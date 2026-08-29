@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { PRODUCTS } from "@/lib/products";
 import { PlanPhase, ProductCategory } from "@/lib/types";
@@ -20,6 +21,7 @@ const CATEGORY_LABEL: Record<ProductCategory, string> = {
 
 export default function ShopPage() {
   const { state, addToCart } = useStore();
+  const router = useRouter();
   const [phase, setPhase] = useState<PlanPhase | "all">("all");
   const [category, setCategory] = useState<ProductCategory | "all">("all");
   const [added, setAdded] = useState<string | null>(null);
@@ -35,6 +37,10 @@ export default function ShopPage() {
   const cartCount = state.cart.reduce((s, c) => s + c.qty, 0);
 
   function handleAdd(id: string) {
+    if (!state.user) {
+      router.push("/login");
+      return;
+    }
     addToCart(id);
     setAdded(id);
     setTimeout(() => setAdded(null), 1200);

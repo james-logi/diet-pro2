@@ -33,6 +33,9 @@ function PlanForm() {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // No goal yet -> show the full setup form. Already have one -> show a
+  // compact summary instead, with an explicit "수정" to bring the form back.
+  const [editing, setEditing] = useState(!state.goal);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect --
@@ -52,11 +55,13 @@ function PlanForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.user?.id]);
 
-  const currentBmi = useMemo(() => calcBmi(weight, height), [weight, height]);
-  const targetBmi = useMemo(
-    () => calcBmi(targetWeight, height),
-    [targetWeight, height]
-  );
+  useEffect(() => {
+    // A goal just appeared or was re-applied (new goal id) -- collapse back
+    // to the summary view instead of leaving the form open.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (state.goal) setEditing(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.goal?.id]);
 
   async function handleApply() {
     setError(null);
@@ -104,10 +109,74 @@ function PlanForm() {
 
   const hasGoal = !!state.goal;
 
+  if (hasGoal && !editing) {
+    const goal = state.goal!;
+    return (
+      <div className="flex flex-col gap-8">
+        <section className="rounded-2xl border border-neutral-200 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-lg font-bold">프로필 &amp; 목표</h1>
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-neutral-600 hover:bg-neutral-50"
+            >
+              수정
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-neutral-600">
+            <span>
+              {state.user?.name} · {state.user?.gender === "M" ? "남성" : "여성"} ·{" "}
+              {state.user?.heightCm}cm
+            </span>
+            <span>
+              목표: {goal.startWeightKg}kg → {goal.targetWeightKg}kg ({goal.durationMonths}
+              개월)
+            </span>
+            <span
+              className={
+                goal.status === "achieved" ? "font-semibold text-emerald-600" : "text-neutral-500"
+              }
+            >
+              {goal.status === "achieved"
+                ? "🎉 달성 완료"
+                : goal.status === "abandoned"
+                ? "중단됨"
+                : "진행 중"}
+            </span>
+          </div>
+        </section>
+
+        <PlanBody
+          gender={gender}
+          height={height}
+          weight={weight}
+          targetWeight={targetWeight}
+          duration={duration}
+          note={note}
+          setNote={setNote}
+          busy={busy}
+          saved={saved}
+          handleSaveSnapshot={handleSaveSnapshot}
+          addToCart={addToCart}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <section className="rounded-2xl border border-neutral-200 bg-white p-6">
-        <h1 className="text-xl font-bold">프로필 &amp; 목표 설정</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl font-bold">프로필 &amp; 목표 설정</h1>
+          {hasGoal && (
+            <button
+              onClick={() => setEditing(false)}
+              className="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-neutral-600 hover:bg-neutral-50"
+            >
+              취소
+            </button>
+          )}
+        </div>
         <p className="mt-1 text-sm text-neutral-500">
           값을 수정하면 아래 예상 이미지와 플랜이 실시간으로 업데이트됩니다.
         </p>
@@ -200,6 +269,55 @@ function PlanForm() {
         </div>
       </section>
 
+      <PlanBody
+        gender={gender}
+        height={height}
+        weight={weight}
+        targetWeight={targetWeight}
+        duration={duration}
+        note={note}
+        setNote={setNote}
+        busy={busy}
+        saved={saved}
+        handleSaveSnapshot={handleSaveSnapshot}
+        addToCart={addToCart}
+      />
+    </div>
+  );
+}
+
+interface PlanBodyProps {
+  gender: Gender;
+  height: number;
+  weight: number;
+  targetWeight: number;
+  duration: number;
+  note: string;
+  setNote: (v: string) => void;
+  busy: boolean;
+  saved: boolean;
+  handleSaveSnapshot: () => void;
+  addToCart: (productId: string) => void;
+}
+
+function PlanBody({
+  gender,
+  height,
+  weight,
+  targetWeight,
+  duration,
+  note,
+  setNote,
+  busy,
+  saved,
+  handleSaveSnapshot,
+  addToCart,
+}: PlanBodyProps) {
+  const currentBmi = useMemo(() => calcBmi(weight, height), [weight, height]);
+  const targetBmi = useMemo(() => calcBmi(targetWeight, height), [targetWeight, height]);
+
+  return (
+    <>
       <section className="rounded-2xl border border-neutral-200 bg-white p-6">
         <h2 className="text-lg font-bold">예상 이미지 모형</h2>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-10">
@@ -289,7 +407,7 @@ function PlanForm() {
           })}
         </div>
       </section>
-    </div>
+    </>
   );
 }
 

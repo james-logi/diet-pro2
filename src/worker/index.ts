@@ -50,6 +50,7 @@ app.use("/api/snapshot", requireAuth);
 app.use("/api/snapshots", requireAuth);
 app.use("/api/orders", requireAuth);
 app.use("/api/orders/:id", requireAuth);
+app.use("/api/orders/:id/cancel", requireAuth);
 app.use("/api/payments/confirm", requireAuth);
 app.use("/api/gifts", requireAuth);
 
@@ -416,6 +417,42 @@ app.post("/api/payments/confirm", async (c) => {
   await c.env.DB.prepare(`UPDATE orders SET status = '결제완료', payment_key = ? WHERE id = ?`)
     .bind(paymentKey, orderId)
     .run();
+
+  const updated = await getOrderByIdForUser(c.env.DB, orderId, userId);
+  return c.json({ order: updated });
+});
+
+app.post("/api/orders/:id/cancel", async (c) => {
+  const userId = c.get("userId");
+  const orderId = c.req.param("id");
+  const { cancelReason } = await c.req
+    .json<{ cancelReason?: string }>()
+    .catch((): { cancelReason?: string } => ({}));
+
+  const order = await getOrderByIdForUser(c.env.DB, orderId, userId);
+  if (!order) return c.json({ error: "주문을 찾을 수 없습니다." }, 404);
+  if (order.status !== "결제완료" || !order.paymentKey) {
+    return c.json({ error: "결제완료 상태의 주문만 취소할 수 있습니다." }, 400);
+  }
+
+  const tossRes = await fetch(
+    `https://api.tosspayments.com/v1/payments/${encodeURIComponent(order.paymentKey)}/cancel`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: "Basic " + btoa(`${c.env.TOSS_WIDGET_SECRET_KEY}:`),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ cancelReason: cancelReason?.trim() || "고객 요청에 의한 취소" }),
+    }
+  );
+  const tossResult = await tossRes.json<{ status?: string; message?: string }>();
+
+  if (!tossRes.ok || (tossResult.status !== "CANCELED" && tossResult.status !== "PARTIAL_CANCELED")) {
+    return c.json({ error: tossResult.message ?? "결제 취소에 실패했습니다." }, 502);
+  }
+
+  await c.env.DB.prepare(`UPDATE orders SET status = '취소' WHERE id = ?`).bind(orderId).run();
 
   const updated = await getOrderByIdForUser(c.env.DB, orderId, userId);
   return c.json({ order: updated });

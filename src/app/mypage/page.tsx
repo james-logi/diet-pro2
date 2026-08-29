@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { OrderStatus } from "@/lib/types";
@@ -24,8 +25,27 @@ function fmtDateTime(iso: string) {
 }
 
 function MyPageContent() {
-  const { state, currentWeight } = useStore();
+  const { state, currentWeight, cancelOrder } = useStore();
   const { user, goal, orders, gifts } = state;
+
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCancel(orderId: string) {
+    setError(null);
+    setBusyId(orderId);
+    try {
+      await cancelOrder(orderId, reason || undefined);
+      setCancelingId(null);
+      setReason("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "결제 취소 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -133,6 +153,17 @@ function MyPageContent() {
                     >
                       결제 이어하기
                     </Link>
+                  ) : o.status === "결제완료" ? (
+                    <button
+                      onClick={() => {
+                        setCancelingId(o.id);
+                        setReason("");
+                        setError(null);
+                      }}
+                      className="text-xs font-semibold text-red-500 underline"
+                    >
+                      결제 취소
+                    </button>
                   ) : (
                     <span />
                   )}
@@ -140,6 +171,36 @@ function MyPageContent() {
                     총 {o.totalPrice.toLocaleString()}원
                   </div>
                 </div>
+
+                {cancelingId === o.id && (
+                  <div className="mt-3 rounded-lg bg-red-50 p-3">
+                    <label className="flex flex-col gap-1 text-xs text-neutral-500">
+                      취소 사유 (선택)
+                      <input
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="예: 단순 변심"
+                        className="rounded-lg border border-neutral-300 px-2 py-1 text-sm"
+                      />
+                    </label>
+                    {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => handleCancel(o.id)}
+                        disabled={busyId === o.id}
+                        className="rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                      >
+                        {busyId === o.id ? "취소 처리 중..." : "취소 확정"}
+                      </button>
+                      <button
+                        onClick={() => setCancelingId(null)}
+                        className="rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100"
+                      >
+                        닫기
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

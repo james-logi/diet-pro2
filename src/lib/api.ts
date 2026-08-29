@@ -101,4 +101,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  cancelOrder: (orderId: string, cancelReason?: string) =>
+    request<{ order: Order }>(`/api/orders/${encodeURIComponent(orderId)}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ cancelReason }),
+    }),
 };

@@ -59,6 +59,7 @@ interface StoreApi {
   removeFromCart: (productId: string) => void;
   updateCartQty: (productId: string, qty: number) => void;
   createOrder: () => Promise<{ orderId: string; totalPrice: number; orderName: string } | null>;
+  cancelOrder: (orderId: string, cancelReason?: string) => Promise<void>;
 }
 
 const EMPTY_STATE: StoreState = {
@@ -202,6 +203,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const result = await api.createOrder(state.cart);
       setState((s) => ({ ...s, cart: [] }));
       return result;
+    },
+
+    cancelOrder: async (orderId, cancelReason) => {
+      const { order } = await api.cancelOrder(orderId, cancelReason);
+      setState((s) => ({
+        ...s,
+        orders: s.orders.map((o) => (o.id === order.id ? order : o)),
+      }));
     },
   };
 

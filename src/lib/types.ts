@@ -60,7 +60,7 @@ export interface OrderItem {
   qty: number;
 }
 
-export type OrderStatus = "결제완료" | "배송중" | "완료" | "취소";
+export type OrderStatus = "결제대기" | "결제완료" | "배송중" | "완료" | "취소";
 
 export interface Order {
   id: string;
@@ -69,6 +69,7 @@ export interface Order {
   totalPrice: number;
   orderedAt: string; // ISO datetime
   status: OrderStatus;
+  paymentKey: string | null;
 }
 
 export type GiftType = "쿠폰" | "사은품" | "포인트";

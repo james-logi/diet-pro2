@@ -1,7 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useStore } from "@/lib/store";
+import { OrderStatus } from "@/lib/types";
 import RequireAuth from "@/components/RequireAuth";
+
+const STATUS_BADGE: Record<OrderStatus, string> = {
+  결제대기: "bg-amber-50 text-amber-700",
+  결제완료: "bg-emerald-50 text-emerald-700",
+  배송중: "bg-blue-50 text-blue-700",
+  완료: "bg-neutral-100 text-neutral-600",
+  취소: "bg-red-50 text-red-600",
+};
 
 function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString("ko-KR", {
@@ -102,7 +112,9 @@ function MyPageContent() {
               <div key={o.id} className="rounded-xl border border-neutral-200 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <span className="text-neutral-400">{fmtDateTime(o.orderedAt)}</span>
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[o.status]}`}
+                  >
                     {o.status}
                   </span>
                 </div>
@@ -113,8 +125,20 @@ function MyPageContent() {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-2 text-right font-semibold">
-                  총 {o.totalPrice.toLocaleString()}원
+                <div className="mt-2 flex items-center justify-between">
+                  {o.status === "결제대기" ? (
+                    <Link
+                      href={`/checkout?orderId=${encodeURIComponent(o.id)}`}
+                      className="text-xs font-semibold text-emerald-600 underline"
+                    >
+                      결제 이어하기
+                    </Link>
+                  ) : (
+                    <span />
+                  )}
+                  <div className="text-right font-semibold">
+                    총 {o.totalPrice.toLocaleString()}원
+                  </div>
                 </div>
               </div>
             ))}

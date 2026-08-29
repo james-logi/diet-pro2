@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { productById } from "@/lib/products";
 import RequireAuth from "@/components/RequireAuth";
 import Link from "next/link";
 
 function CartContent() {
-  const { state, updateCartQty, removeFromCart, checkout } = useStore();
-  const [completedOrderId, setCompletedOrderId] = useState<string | null>(null);
+  const { state, updateCartQty, removeFromCart, createOrder } = useStore();
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -26,41 +27,16 @@ function CartContent() {
 
   const total = rows.reduce((sum, r) => sum + r.product.price * r.qty, 0);
 
-  async function handleCheckout() {
+  async function handleOrder() {
     setError(null);
     setBusy(true);
     try {
-      const orderId = await checkout();
-      if (orderId) setCompletedOrderId(orderId);
+      const result = await createOrder();
+      if (result) router.push(`/checkout?orderId=${encodeURIComponent(result.orderId)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "결제 중 오류가 발생했습니다.");
-    } finally {
+      setError(err instanceof Error ? err.message : "주문 생성 중 오류가 발생했습니다.");
       setBusy(false);
     }
-  }
-
-  if (completedOrderId) {
-    return (
-      <div className="mx-auto max-w-md rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
-        <div className="text-4xl">✅</div>
-        <h1 className="mt-3 text-lg font-bold text-emerald-700">주문이 완료되었습니다</h1>
-        <p className="mt-1 text-sm text-neutral-600">주문번호 {completedOrderId}</p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Link
-            href="/mypage"
-            className="rounded-full bg-neutral-900 px-5 py-2 text-sm font-semibold text-white"
-          >
-            구매 이력 보기
-          </Link>
-          <Link
-            href="/shop"
-            className="rounded-full border border-neutral-300 px-5 py-2 text-sm font-semibold text-neutral-700"
-          >
-            계속 쇼핑하기
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -114,11 +90,11 @@ function CartContent() {
           <div className="mt-4 flex items-center justify-between rounded-xl bg-neutral-50 p-5">
             <span className="text-lg font-bold">총 {total.toLocaleString()}원</span>
             <button
-              onClick={handleCheckout}
+              onClick={handleOrder}
               disabled={busy}
               className="rounded-full bg-emerald-500 px-6 py-3 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
             >
-              {busy ? "처리 중..." : "결제하기 (데모)"}
+              {busy ? "처리 중..." : "주문하기"}
             </button>
           </div>
         </div>

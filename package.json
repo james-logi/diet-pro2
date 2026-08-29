@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tosspayments/tosspayments-sdk": "^2.8.1",
     "bcryptjs": "^3.0.3",
     "hono": "^4.13.5",
     "next": "16.3.3",

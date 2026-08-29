@@ -87,9 +87,18 @@ export const api = {
       body: JSON.stringify({ note }),
     }),
 
-  checkout: (items: { productId: string; qty: number }[]) =>
-    request<{ orders: Order[]; orderId: string }>("/api/checkout", {
+  createOrder: (items: { productId: string; qty: number }[]) =>
+    request<{ orderId: string; totalPrice: number; orderName: string }>("/api/orders", {
       method: "POST",
       body: JSON.stringify({ items }),
+    }),
+
+  getOrder: (orderId: string) =>
+    request<{ order: Order }>(`/api/orders/${encodeURIComponent(orderId)}`),
+
+  confirmPayment: (input: { paymentKey: string; orderId: string; amount: number }) =>
+    request<{ order: Order }>("/api/payments/confirm", {
+      method: "POST",
+      body: JSON.stringify(input),
     }),
 };

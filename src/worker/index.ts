@@ -9,6 +9,7 @@ import {
   getLatestGoal,
   getSnapshots,
   getOrders,
+  getOrderByIdForUser,
   getGifts,
   toPublicUser,
   UserRow,
@@ -19,6 +20,7 @@ import { DietGoal } from "../lib/types";
 interface Bindings {
   DB: D1Database;
   SESSION_SECRET: string;
+  TOSS_WIDGET_SECRET_KEY: string;
 }
 
 interface Variables {
@@ -46,8 +48,9 @@ app.use("/api/goal", requireAuth);
 app.use("/api/weight", requireAuth);
 app.use("/api/snapshot", requireAuth);
 app.use("/api/snapshots", requireAuth);
-app.use("/api/checkout", requireAuth);
 app.use("/api/orders", requireAuth);
+app.use("/api/orders/:id", requireAuth);
+app.use("/api/payments/confirm", requireAuth);
 app.use("/api/gifts", requireAuth);
 
 async function setSessionCookie(c: Context<AppEnv>, userId: string) {
@@ -318,9 +321,12 @@ app.get("/api/snapshots", async (c) => {
   return c.json({ snapshots });
 });
 
-// ---------- Shop / orders / gifts ----------
+// ---------- Shop / orders / payments / gifts ----------
 
-app.post("/api/checkout", async (c) => {
+// Creates an order in '결제대기' (payment pending) status from the cart.
+// No money moves here -- this just reserves the order so the Toss widget
+// has an orderId/amount to request payment for.
+app.post("/api/orders", async (c) => {
   const userId = c.get("userId");
   const { items } = await c.req.json<{ items?: { productId: string; qty: number }[] }>();
   if (!items || items.length === 0) return c.json({ error: "장바구니가 비어있습니다." }, 400);
@@ -338,11 +344,15 @@ app.post("/api/checkout", async (c) => {
   const total = resolved.reduce((sum, i) => sum + i.price * i.qty, 0);
   const goal = await getLatestGoal(c.env.DB, userId);
   const orderId = crypto.randomUUID();
+  const orderName =
+    resolved.length === 1
+      ? resolved[0].name
+      : `${resolved[0].name} 외 ${resolved.length - 1}건`;
 
   const statements = [
     c.env.DB.prepare(
       `INSERT INTO orders (id, user_id, goal_id, total_price, ordered_at, status)
-       VALUES (?, ?, ?, ?, ?, '결제완료')`
+       VALUES (?, ?, ?, ?, ?, '결제대기')`
     ).bind(orderId, userId, goal?.id ?? null, total, new Date().toISOString()),
     ...resolved.map((i) =>
       c.env.DB.prepare(
@@ -352,13 +362,63 @@ app.post("/api/checkout", async (c) => {
   ];
   await c.env.DB.batch(statements);
 
-  const orders = await getOrders(c.env.DB, userId);
-  return c.json({ orders, orderId });
+  return c.json({ orderId, totalPrice: total, orderName });
 });
 
 app.get("/api/orders", async (c) => {
   const orders = await getOrders(c.env.DB, c.get("userId"));
   return c.json({ orders });
+});
+
+app.get("/api/orders/:id", async (c) => {
+  const order = await getOrderByIdForUser(c.env.DB, c.req.param("id"), c.get("userId"));
+  if (!order) return c.json({ error: "주문을 찾을 수 없습니다." }, 404);
+  return c.json({ order });
+});
+
+// Server-side confirmation with Toss: the client never sees the secret key,
+// and we re-check the order's owner + amount before approving anything.
+app.post("/api/payments/confirm", async (c) => {
+  const userId = c.get("userId");
+  const { paymentKey, orderId, amount } = await c.req.json<{
+    paymentKey?: string;
+    orderId?: string;
+    amount?: number;
+  }>();
+  if (!paymentKey || !orderId || !amount) {
+    return c.json({ error: "결제 정보가 올바르지 않습니다." }, 400);
+  }
+
+  const order = await getOrderByIdForUser(c.env.DB, orderId, userId);
+  if (!order) return c.json({ error: "주문을 찾을 수 없습니다." }, 404);
+  if (order.status === "결제완료") return c.json({ order });
+  if (order.status !== "결제대기") {
+    return c.json({ error: "결제할 수 없는 주문 상태입니다." }, 400);
+  }
+  if (order.totalPrice !== amount) {
+    return c.json({ error: "결제 금액이 주문 금액과 일치하지 않습니다." }, 400);
+  }
+
+  const tossRes = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
+    method: "POST",
+    headers: {
+      Authorization: "Basic " + btoa(`${c.env.TOSS_WIDGET_SECRET_KEY}:`),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ paymentKey, orderId, amount }),
+  });
+  const tossResult = await tossRes.json<{ status?: string; message?: string }>();
+
+  if (!tossRes.ok || tossResult.status !== "DONE") {
+    return c.json({ error: tossResult.message ?? "결제 승인에 실패했습니다." }, 502);
+  }
+
+  await c.env.DB.prepare(`UPDATE orders SET status = '결제완료', payment_key = ? WHERE id = ?`)
+    .bind(paymentKey, orderId)
+    .run();
+
+  const updated = await getOrderByIdForUser(c.env.DB, orderId, userId);
+  return c.json({ order: updated });
 });
 
 app.get("/api/gifts", async (c) => {

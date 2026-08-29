@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS orders (
   goal_id TEXT,
   total_price INTEGER NOT NULL,
   ordered_at TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT '결제완료'
+  status TEXT NOT NULL DEFAULT '결제대기',
+  payment_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, ordered_at);
 

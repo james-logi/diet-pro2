@@ -58,7 +58,7 @@ interface StoreApi {
   addToCart: (productId: string, qty?: number) => boolean;
   removeFromCart: (productId: string) => void;
   updateCartQty: (productId: string, qty: number) => void;
-  checkout: () => Promise<string | null>;
+  createOrder: () => Promise<{ orderId: string; totalPrice: number; orderName: string } | null>;
 }
 
 const EMPTY_STATE: StoreState = {
@@ -197,11 +197,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }));
     },
 
-    checkout: async () => {
+    createOrder: async () => {
       if (state.cart.length === 0) return null;
-      const { orders, orderId } = await api.checkout(state.cart);
-      setState((s) => ({ ...s, orders, cart: [] }));
-      return orderId;
+      const result = await api.createOrder(state.cart);
+      setState((s) => ({ ...s, cart: [] }));
+      return result;
     },
   };
 

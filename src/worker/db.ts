@@ -110,32 +110,51 @@ export async function getSnapshots(db: D1Database, userId: string): Promise<Plan
   }));
 }
 
+interface OrderRow {
+  id: string;
+  goalId: string | null;
+  totalPrice: number;
+  orderedAt: string;
+  status: Order["status"];
+  paymentKey: string | null;
+}
+
+const ORDER_COLUMNS = `id, goal_id as goalId, total_price as totalPrice, ordered_at as orderedAt, status, payment_key as paymentKey`;
+
+async function attachItems(db: D1Database, order: OrderRow): Promise<Order> {
+  const { results: items } = await db
+    .prepare(`SELECT product_id as productId, name, price, qty FROM order_items WHERE order_id = ?`)
+    .bind(order.id)
+    .all<OrderItem>();
+  return { ...order, items: items ?? [] };
+}
+
 export async function getOrders(db: D1Database, userId: string): Promise<Order[]> {
   const { results: orderRows } = await db
-    .prepare(
-      `SELECT id, goal_id as goalId, total_price as totalPrice, ordered_at as orderedAt, status
-       FROM orders WHERE user_id = ? ORDER BY ordered_at DESC`
-    )
+    .prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE user_id = ? ORDER BY ordered_at DESC`)
     .bind(userId)
-    .all<{
-      id: string;
-      goalId: string | null;
-      totalPrice: number;
-      orderedAt: string;
-      status: Order["status"];
-    }>();
+    .all<OrderRow>();
 
   const orders: Order[] = [];
   for (const o of orderRows ?? []) {
-    const { results: items } = await db
-      .prepare(
-        `SELECT product_id as productId, name, price, qty FROM order_items WHERE order_id = ?`
-      )
-      .bind(o.id)
-      .all<OrderItem>();
-    orders.push({ ...o, items: items ?? [] });
+    orders.push(await attachItems(db, o));
   }
   return orders;
+}
+
+// Ownership-scoped: only returns the order if it belongs to userId, so a
+// caller can't fetch another user's order by guessing/changing the id.
+export async function getOrderByIdForUser(
+  db: D1Database,
+  orderId: string,
+  userId: string
+): Promise<Order | null> {
+  const row = await db
+    .prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE id = ? AND user_id = ?`)
+    .bind(orderId, userId)
+    .first<OrderRow>();
+  if (!row) return null;
+  return attachItems(db, row);
 }
 
 export async function getGifts(db: D1Database, userId: string): Promise<Gift[]> {

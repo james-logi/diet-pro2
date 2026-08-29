@@ -11,7 +11,7 @@ import RequireAuth from "@/components/RequireAuth";
 
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "";
 
-type Step = "review" | "paying" | "confirming" | "done" | "error";
+type Step = "review" | "paying" | "confirming" | "done" | "closed" | "error";
 
 const STEP_LABELS: { key: Step; label: string }[] = [
   { key: "review", label: "주문확인" },
@@ -88,6 +88,9 @@ function CheckoutContent() {
         setOrder(order);
         if (order.status === "결제완료") {
           setStep("done");
+        } else if (order.status !== "결제대기") {
+          // 취소/배송중/완료 등 -- 이미 결제 단계를 지난 주문은 위젯을 띄우지 않는다.
+          setStep("closed");
         } else if (paymentKey && amountParam) {
           setStep("confirming");
         } else {
@@ -178,7 +181,7 @@ function CheckoutContent() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-8">
       <h1 className="text-xl font-bold">주문 / 결제</h1>
-      <StepIndicator step={step} />
+      {step !== "closed" && <StepIndicator step={step} />}
 
       {order && (
         <section className="rounded-2xl border border-neutral-200 bg-white p-6">
@@ -227,6 +230,34 @@ function CheckoutContent() {
           <div className="text-4xl">✅</div>
           <h2 className="mt-3 text-lg font-bold text-emerald-700">결제가 완료되었습니다</h2>
           <p className="mt-1 text-sm text-neutral-600">
+            주문번호 {order.id} · {order.totalPrice.toLocaleString()}원
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link
+              href="/mypage"
+              className="rounded-full bg-neutral-900 px-5 py-2 text-sm font-semibold text-white"
+            >
+              구매 이력 보기
+            </Link>
+            <Link
+              href="/shop"
+              className="rounded-full border border-neutral-300 px-5 py-2 text-sm font-semibold text-neutral-700"
+            >
+              계속 쇼핑하기
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {step === "closed" && order && (
+        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-8 text-center">
+          <div className="text-4xl">
+            {order.status === "취소" ? "🚫" : order.status === "배송중" ? "🚚" : "📦"}
+          </div>
+          <h2 className="mt-3 text-lg font-bold text-neutral-700">
+            주문 상태: {order.status}
+          </h2>
+          <p className="mt-1 text-sm text-neutral-500">
             주문번호 {order.id} · {order.totalPrice.toLocaleString()}원
           </p>
           <div className="mt-6 flex justify-center gap-3">

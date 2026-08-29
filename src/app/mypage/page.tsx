@@ -132,11 +132,12 @@ function MyPageContent() {
               <div key={o.id} className="rounded-xl border border-neutral-200 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <span className="text-neutral-400">{fmtDateTime(o.orderedAt)}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[o.status]}`}
+                  <Link
+                    href={`/checkout?orderId=${encodeURIComponent(o.id)}`}
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium hover:opacity-80 ${STATUS_BADGE[o.status]}`}
                   >
                     {o.status}
-                  </span>
+                  </Link>
                 </div>
                 <ul className="mt-2 text-sm text-neutral-600">
                   {o.items.map((i) => (

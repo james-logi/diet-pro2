@@ -324,14 +324,14 @@ function PlanBody({
           <Silhouette
             gender={gender}
             bmi={currentBmi}
-            colorClass="fill-neutral-400"
+            tone="current"
             label={`현재 · ${weight}kg · BMI ${currentBmi.toFixed(1)} (${bmiCategoryLabel[bmiCategory(currentBmi)]})`}
           />
           <div className="text-3xl text-neutral-300">→</div>
           <Silhouette
             gender={gender}
             bmi={targetBmi}
-            colorClass="fill-emerald-500"
+            tone="target"
             label={`${duration}개월 후 · ${targetWeight}kg · BMI ${targetBmi.toFixed(1)} (${bmiCategoryLabel[bmiCategory(targetBmi)]})`}
           />
         </div>

@@ -224,7 +224,7 @@ function HistoryContent() {
                   <Silhouette
                     gender={user?.gender ?? "F"}
                     bmi={s.bmi}
-                    colorClass="fill-emerald-400"
+                    tone="target"
                     label={`${s.weightKg}kg · BMI ${s.bmi.toFixed(1)}`}
                   />
                 </div>

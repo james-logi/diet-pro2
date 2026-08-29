@@ -7,6 +7,19 @@ function bytesToHex(bytes: Uint8Array): string {
     .join("");
 }
 
+// Plain `===` on the hex strings would bail out at the first differing
+// character, so how long a forged signature survives leaks a little timing
+// information about how much of it is already correct. Compare every byte
+// regardless of where the mismatch is.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 async function hmacHex(data: string, secret: string): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -37,6 +50,6 @@ export async function verifySession(token: string, secret: string): Promise<stri
   if (!userId || !expiresAt || Number.isNaN(expiresAt)) return null;
   if (Date.now() > expiresAt) return null;
   const expectedSig = await hmacHex(`${userId}.${expiresAtStr}`, secret);
-  if (expectedSig !== sig) return null;
+  if (!timingSafeEqual(expectedSig, sig)) return null;
   return userId;
 }

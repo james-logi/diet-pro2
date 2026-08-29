@@ -34,6 +34,15 @@ const app = new Hono<AppEnv>();
 
 const COOKIE_NAME = "session";
 
+// Sanity bounds for numeric user input. None of these protect against a
+// cross-user attack (every write is already scoped to the caller's own
+// session), but without them a typo or a scripted request can wedge a
+// user's own data into nonsensical states (negative height, a BMI division
+// by a bogus number, an order for 999999999 units).
+function inRange(n: unknown, min: number, max: number): n is number {
+  return typeof n === "number" && Number.isFinite(n) && n >= min && n <= max;
+}
+
 const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   const token = getCookie(c, COOKIE_NAME);
   if (!token) return c.json({ error: "로그인이 필요합니다." }, 401);
@@ -78,10 +87,13 @@ app.post("/api/auth/signup", async (c) => {
   }>();
   const { name, username, password } = body;
   const gender = body.gender === "M" ? "M" : "F";
-  const heightCm = Number(body.heightCm) || 0;
+  const heightCm = body.heightCm ?? 0;
 
   if (!name?.trim() || !username?.trim() || !password || password.length < 4) {
     return c.json({ error: "이름, 아이디, 4자 이상 비밀번호를 입력해주세요." }, 400);
+  }
+  if (heightCm !== 0 && !inRange(heightCm, 50, 250)) {
+    return c.json({ error: "키는 50~250cm 사이로 입력해주세요." }, 400);
   }
 
   const existing = await getUserByUsername(c.env.DB, username.trim());
@@ -161,6 +173,9 @@ app.put("/api/profile", async (c) => {
     gender?: "M" | "F";
     heightCm?: number;
   }>();
+  if (heightCm !== undefined && !inRange(heightCm, 50, 250)) {
+    return c.json({ error: "키는 50~250cm 사이로 입력해주세요." }, 400);
+  }
   await c.env.DB.prepare(
     `UPDATE users SET name = COALESCE(?, name), gender = COALESCE(?, gender), height_cm = COALESCE(?, height_cm) WHERE id = ?`
   )
@@ -203,6 +218,12 @@ app.post("/api/goal", async (c) => {
   if (!startWeightKg || !targetWeightKg || !durationMonths) {
     return c.json({ error: "체중과 기간을 모두 입력해주세요." }, 400);
   }
+  if (!inRange(startWeightKg, 20, 300) || !inRange(targetWeightKg, 20, 300)) {
+    return c.json({ error: "체중은 20~300kg 사이로 입력해주세요." }, 400);
+  }
+  if (!inRange(durationMonths, 1, 60)) {
+    return c.json({ error: "기간은 1~60개월 사이로 입력해주세요." }, 400);
+  }
 
   const id = crypto.randomUUID();
   const startDate = new Date();
@@ -235,6 +256,9 @@ app.post("/api/weight", async (c) => {
   const userId = c.get("userId");
   const { weightKg, date } = await c.req.json<{ weightKg?: number; date?: string }>();
   if (!weightKg) return c.json({ error: "몸무게를 입력해주세요." }, 400);
+  if (!inRange(weightKg, 20, 300)) {
+    return c.json({ error: "체중은 20~300kg 사이로 입력해주세요." }, 400);
+  }
   const entryDate = date && isValidDateStr(date) ? date : todayStr();
 
   await upsertWeightEntryStmt(c.env.DB, userId, weightKg, entryDate).run();
@@ -336,7 +360,7 @@ app.post("/api/orders", async (c) => {
   const resolved = items
     .map((i) => {
       const p = productById(i.productId);
-      if (!p || i.qty <= 0) return null;
+      if (!p || !inRange(i.qty, 1, 99)) return null;
       return { productId: p.id, name: p.name, price: p.price, qty: i.qty };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);

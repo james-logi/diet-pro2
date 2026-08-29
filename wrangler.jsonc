@@ -1,11 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "diet-pro2",
+  "main": "src/worker/index.ts",
   "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./out"
   },
   "build": {
     "command": "npm run build"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "diet-pro2-db",
+      "database_id": "c9389e06-d7bc-45f9-bb10-d656e1ffbe5a"
+    }
+  ]
 }

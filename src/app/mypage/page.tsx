@@ -1,6 +1,7 @@
 "use client";
 
 import { useStore } from "@/lib/store";
+import RequireAuth from "@/components/RequireAuth";
 
 function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString("ko-KR", {
@@ -12,9 +13,9 @@ function fmtDateTime(iso: string) {
   });
 }
 
-export default function MyPage() {
-  const { state, currentWeight, resetAll } = useStore();
-  const { profile, goal, orders, gifts } = state;
+function MyPageContent() {
+  const { state, currentWeight } = useStore();
+  const { user, goal, orders, gifts } = state;
 
   return (
     <div className="flex flex-col gap-8">
@@ -22,23 +23,25 @@ export default function MyPage() {
 
       <section className="rounded-2xl border border-neutral-200 bg-white p-6">
         <h2 className="text-lg font-semibold">내 정보</h2>
-        {profile ? (
+        {user ? (
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div>
               <div className="text-neutral-400">이름</div>
-              <div className="font-medium">{profile.name}</div>
+              <div className="font-medium">{user.name}</div>
+            </div>
+            <div>
+              <div className="text-neutral-400">아이디</div>
+              <div className="font-medium">{user.username}</div>
             </div>
             <div>
               <div className="text-neutral-400">성별</div>
-              <div className="font-medium">{profile.gender === "F" ? "여성" : "남성"}</div>
+              <div className="font-medium">{user.gender === "F" ? "여성" : "남성"}</div>
             </div>
             <div>
-              <div className="text-neutral-400">키</div>
-              <div className="font-medium">{profile.heightCm}cm</div>
-            </div>
-            <div>
-              <div className="text-neutral-400">현재 체중</div>
-              <div className="font-medium">{currentWeight}kg</div>
+              <div className="text-neutral-400">키 / 현재 체중</div>
+              <div className="font-medium">
+                {user.heightCm}cm / {currentWeight}kg
+              </div>
             </div>
           </div>
         ) : (
@@ -95,7 +98,7 @@ export default function MyPage() {
           <p className="mt-2 text-sm text-neutral-500">구매 이력이 없습니다.</p>
         ) : (
           <div className="mt-3 flex flex-col gap-3">
-            {[...orders].reverse().map((o) => (
+            {orders.map((o) => (
               <div key={o.id} className="rounded-xl border border-neutral-200 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <span className="text-neutral-400">{fmtDateTime(o.orderedAt)}</span>
@@ -118,21 +121,14 @@ export default function MyPage() {
           </div>
         )}
       </section>
-
-      <section className="rounded-2xl border border-neutral-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-red-500">데이터 초기화</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          이 브라우저에 저장된 모든 프로필/기록/주문 데이터를 삭제합니다.
-        </p>
-        <button
-          onClick={() => {
-            if (confirm("정말로 모든 데이터를 초기화할까요?")) resetAll();
-          }}
-          className="mt-3 rounded-full border border-red-300 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-50"
-        >
-          전체 초기화
-        </button>
-      </section>
     </div>
+  );
+}
+
+export default function MyPage() {
+  return (
+    <RequireAuth>
+      <MyPageContent />
+    </RequireAuth>
   );
 }

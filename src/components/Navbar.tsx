@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 
 const NAV = [
@@ -14,8 +14,14 @@ const NAV = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { state } = useStore();
+  const router = useRouter();
+  const { state, logout } = useStore();
   const cartCount = state.cart.reduce((sum, c) => sum + c.qty, 0);
+
+  async function handleLogout() {
+    await logout();
+    router.push("/");
+  }
 
   return (
     <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur">
@@ -42,6 +48,25 @@ export default function Navbar() {
               )}
             </Link>
           ))}
+          {!state.authLoading &&
+            (state.user ? (
+              <div className="ml-2 flex items-center gap-2 border-l border-neutral-200 pl-3">
+                <span className="text-neutral-500">{state.user.name}님</span>
+                <button
+                  onClick={handleLogout}
+                  className="rounded-full px-3 py-1.5 font-medium text-neutral-500 hover:bg-neutral-100"
+                >
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="ml-2 rounded-full border border-emerald-500 px-3 py-1.5 font-medium text-emerald-600 hover:bg-emerald-50"
+              >
+                로그인
+              </Link>
+            ))}
         </nav>
       </div>
     </header>

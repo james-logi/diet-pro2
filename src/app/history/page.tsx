@@ -3,6 +3,7 @@
 import { useStore } from "@/lib/store";
 import Silhouette from "@/components/Silhouette";
 import { bmiCategory, bmiCategoryLabel } from "@/lib/bmi";
+import RequireAuth from "@/components/RequireAuth";
 import Link from "next/link";
 
 function fmt(iso: string) {
@@ -13,9 +14,9 @@ function fmt(iso: string) {
   });
 }
 
-export default function HistoryPage() {
+function HistoryContent() {
   const { state } = useStore();
-  const { snapshots, weightHistory, profile } = state;
+  const { snapshots, weightHistory, user } = state;
 
   const weights = weightHistory.map((w) => w.weightKg);
   const maxW = weights.length ? Math.max(...weights) : 0;
@@ -80,7 +81,7 @@ export default function HistoryPage() {
                 <div className="text-xs text-neutral-400">{fmt(s.savedAt)}</div>
                 <div className="mt-3 flex justify-center">
                   <Silhouette
-                    gender={profile?.gender ?? "F"}
+                    gender={user?.gender ?? "F"}
                     bmi={s.bmi}
                     colorClass="fill-emerald-400"
                     label={`${s.weightKg}kg · BMI ${s.bmi.toFixed(1)}`}
@@ -110,5 +111,13 @@ export default function HistoryPage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function HistoryPage() {
+  return (
+    <RequireAuth>
+      <HistoryContent />
+    </RequireAuth>
   );
 }

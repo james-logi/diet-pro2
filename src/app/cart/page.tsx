@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { productById } from "@/lib/products";
+import RequireAuth from "@/components/RequireAuth";
 import Link from "next/link";
-import { Order } from "@/lib/types";
 
-export default function CartPage() {
+function CartContent() {
   const { state, updateCartQty, removeFromCart, checkout } = useStore();
-  const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [completedOrderId, setCompletedOrderId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const rows = useMemo(
     () =>
@@ -24,19 +26,25 @@ export default function CartPage() {
 
   const total = rows.reduce((sum, r) => sum + r.product.price * r.qty, 0);
 
-  function handleCheckout() {
-    const order = checkout();
-    if (order) setCompletedOrder(order);
+  async function handleCheckout() {
+    setError(null);
+    setBusy(true);
+    try {
+      const orderId = await checkout();
+      if (orderId) setCompletedOrderId(orderId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "결제 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  if (completedOrder) {
+  if (completedOrderId) {
     return (
       <div className="mx-auto max-w-md rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
         <div className="text-4xl">✅</div>
         <h1 className="mt-3 text-lg font-bold text-emerald-700">주문이 완료되었습니다</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          주문번호 {completedOrder.id} · {completedOrder.totalPrice.toLocaleString()}원
-        </p>
+        <p className="mt-1 text-sm text-neutral-600">주문번호 {completedOrderId}</p>
         <div className="mt-6 flex justify-center gap-3">
           <Link
             href="/mypage"
@@ -101,17 +109,28 @@ export default function CartPage() {
             </div>
           ))}
 
+          {error && <p className="text-sm text-red-500">{error}</p>}
+
           <div className="mt-4 flex items-center justify-between rounded-xl bg-neutral-50 p-5">
             <span className="text-lg font-bold">총 {total.toLocaleString()}원</span>
             <button
               onClick={handleCheckout}
-              className="rounded-full bg-emerald-500 px-6 py-3 font-semibold text-white hover:bg-emerald-600"
+              disabled={busy}
+              className="rounded-full bg-emerald-500 px-6 py-3 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
             >
-              결제하기 (데모)
+              {busy ? "처리 중..." : "결제하기 (데모)"}
             </button>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+export default function CartPage() {
+  return (
+    <RequireAuth>
+      <CartContent />
+    </RequireAuth>
   );
 }

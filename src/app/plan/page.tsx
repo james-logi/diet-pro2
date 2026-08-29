@@ -1,21 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Gender } from "@/lib/types";
 import { bmiCategoryLabel, calcBmi, bmiCategory } from "@/lib/bmi";
 import Silhouette from "@/components/Silhouette";
 import { PHASE_GUIDES } from "@/lib/plans";
 import { PRODUCTS } from "@/lib/products";
+import RequireAuth from "@/components/RequireAuth";
 import Link from "next/link";
 
-export default function PlanPage() {
-  const { state, currentWeight, setProfile, setGoal, updateWeight, saveSnapshot, addToCart } =
-    useStore();
+function PlanForm() {
+  const {
+    state,
+    currentWeight,
+    updateProfile,
+    setGoal,
+    updateWeight,
+    saveSnapshot,
+    addToCart,
+  } = useStore();
 
-  const [name, setName] = useState(state.profile?.name ?? "");
-  const [gender, setGender] = useState<Gender>(state.profile?.gender ?? "F");
-  const [height, setHeight] = useState(state.profile?.heightCm ?? 165);
+  const [name, setName] = useState(state.user?.name ?? "");
+  const [gender, setGender] = useState<Gender>(state.user?.gender ?? "F");
+  const [height, setHeight] = useState(state.user?.heightCm || 165);
   const [weight, setWeight] = useState(currentWeight || 60);
   const [targetWeight, setTargetWeight] = useState(
     state.goal?.targetWeightKg ?? (currentWeight || 60) - 5
@@ -23,6 +31,26 @@ export default function PlanPage() {
   const [duration, setDuration] = useState(state.goal?.durationMonths ?? 3);
   const [saved, setSaved] = useState(false);
   const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect --
+       Deliberate: seed the form once the user's data arrives from the API
+       (auth/state are fetched asynchronously after mount). */
+    if (state.user) {
+      setName(state.user.name);
+      setGender(state.user.gender);
+      setHeight(state.user.heightCm || 165);
+    }
+    if (currentWeight) setWeight(currentWeight);
+    if (state.goal) {
+      setTargetWeight(state.goal.targetWeightKg);
+      setDuration(state.goal.durationMonths);
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.user?.id]);
 
   const currentBmi = useMemo(() => calcBmi(weight, height), [weight, height]);
   const targetBmi = useMemo(
@@ -30,23 +58,48 @@ export default function PlanPage() {
     [targetWeight, height]
   );
 
-  function handleApply() {
-    setProfile(name || "고객", gender, height);
-    setGoal(weight, targetWeight, duration);
-    setSaved(false);
-  }
-
-  function handleWeightUpdate() {
-    updateWeight(weight);
-  }
-
-  function handleSaveSnapshot() {
-    if (!state.profile) {
-      handleApply();
+  async function handleApply() {
+    setError(null);
+    setBusy(true);
+    try {
+      await updateProfile({ name: name || "고객", gender, heightCm: height });
+      await setGoal(weight, targetWeight, duration);
+      setSaved(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "적용 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
     }
-    saveSnapshot(note || undefined);
-    setSaved(true);
-    setNote("");
+  }
+
+  async function handleWeightUpdate() {
+    setError(null);
+    setBusy(true);
+    try {
+      await updateWeight(weight);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "업데이트 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSaveSnapshot() {
+    setError(null);
+    setBusy(true);
+    try {
+      if (!state.goal) {
+        await updateProfile({ name: name || "고객", gender, heightCm: height });
+        await setGoal(weight, targetWeight, duration);
+      }
+      await saveSnapshot(note || undefined);
+      setSaved(true);
+      setNote("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "저장 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const hasGoal = !!state.goal;
@@ -125,17 +178,21 @@ export default function PlanPage() {
           </label>
         </div>
 
+        {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+
         <div className="mt-5 flex flex-wrap gap-3">
           <button
             onClick={handleApply}
-            className="rounded-full bg-emerald-500 px-5 py-2.5 font-semibold text-white hover:bg-emerald-600"
+            disabled={busy}
+            className="rounded-full bg-emerald-500 px-5 py-2.5 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
           >
             예상 이미지 생성 / 적용
           </button>
           {hasGoal && (
             <button
               onClick={handleWeightUpdate}
-              className="rounded-full border border-neutral-300 px-5 py-2.5 font-semibold text-neutral-700 hover:bg-neutral-50"
+              disabled={busy}
+              className="rounded-full border border-neutral-300 px-5 py-2.5 font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
             >
               현재 몸무게로 기록 업데이트
             </button>
@@ -170,7 +227,8 @@ export default function PlanPage() {
           />
           <button
             onClick={handleSaveSnapshot}
-            className="rounded-full bg-neutral-900 px-6 py-2.5 font-semibold text-white hover:bg-neutral-700"
+            disabled={busy}
+            className="rounded-full bg-neutral-900 px-6 py-2.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
           >
             저장하기 (기록에 남기기)
           </button>
@@ -232,5 +290,13 @@ export default function PlanPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function PlanPage() {
+  return (
+    <RequireAuth>
+      <PlanForm />
+    </RequireAuth>
   );
 }

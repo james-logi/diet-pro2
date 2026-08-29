@@ -8,201 +8,179 @@ import {
   useState,
   ReactNode,
 } from "react";
-import {
-  AppState,
-  CartItem,
-  DietGoal,
-  Gender,
-  Gift,
-  Order,
-  OrderItem,
-  PlanSnapshot,
-  WeightEntry,
-} from "./types";
-import { productById } from "./products";
+import { api, AppStatePayload, PublicUser } from "./api";
+import { CartItem, DietGoal, Gender, Gift, Order, PlanSnapshot, WeightEntry } from "./types";
 
-const STORAGE_KEY = "diet-pro2-state-v1";
+const CART_STORAGE_KEY = "diet-pro2-cart-v1";
 
-const EMPTY_STATE: AppState = {
-  profile: null,
-  weightHistory: [],
-  goal: null,
-  snapshots: [],
-  cart: [],
-  orders: [],
-  gifts: [],
-};
-
-function uid(): string {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
-
-function loadState(): AppState {
-  if (typeof window === "undefined") return EMPTY_STATE;
+function loadCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY_STATE;
-    return { ...EMPTY_STATE, ...JSON.parse(raw) };
+    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return EMPTY_STATE;
+    return [];
   }
 }
 
+interface StoreState {
+  authLoading: boolean;
+  user: PublicUser | null;
+  weightHistory: WeightEntry[];
+  goal: DietGoal | null;
+  snapshots: PlanSnapshot[];
+  orders: Order[];
+  gifts: Gift[];
+  cart: CartItem[];
+}
+
 interface StoreApi {
-  state: AppState;
+  state: StoreState;
   currentWeight: number;
-  setProfile: (name: string, gender: Gender, heightCm: number) => void;
+  signup: (input: {
+    name: string;
+    username: string;
+    password: string;
+    gender: Gender;
+    heightCm: number;
+  }) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshState: () => Promise<void>;
+  updateProfile: (input: { name?: string; gender?: Gender; heightCm?: number }) => Promise<void>;
   setGoal: (
     startWeightKg: number,
     targetWeightKg: number,
     durationMonths: number
-  ) => void;
-  updateWeight: (weightKg: number) => void;
-  saveSnapshot: (note?: string) => void;
+  ) => Promise<void>;
+  updateWeight: (weightKg: number) => Promise<{ giftIssued: boolean }>;
+  saveSnapshot: (note?: string) => Promise<void>;
   addToCart: (productId: string, qty?: number) => void;
   removeFromCart: (productId: string) => void;
   updateCartQty: (productId: string, qty: number) => void;
-  clearCart: () => void;
-  checkout: () => Order | null;
-  resetAll: () => void;
+  checkout: () => Promise<string | null>;
 }
+
+const EMPTY_STATE: StoreState = {
+  authLoading: true,
+  user: null,
+  weightHistory: [],
+  goal: null,
+  snapshots: [],
+  orders: [],
+  gifts: [],
+  cart: [],
+};
 
 const StoreContext = createContext<StoreApi | null>(null);
 
+function applyAppState(s: StoreState, payload: AppStatePayload): StoreState {
+  return {
+    ...s,
+    user: payload.profile,
+    weightHistory: payload.weightHistory,
+    goal: payload.goal,
+    snapshots: payload.snapshots,
+    orders: payload.orders,
+    gifts: payload.gifts,
+  };
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(EMPTY_STATE);
-  const [hydrated, setHydrated] = useState(false);
+  const [state, setState] = useState<StoreState>(EMPTY_STATE);
 
   useEffect(() => {
-    // Deliberate: hydrate from localStorage only after mount, so the first
-    // client render matches the server-rendered (empty) HTML and avoids a
-    // hydration mismatch.
+    // Deliberate: cart/auth are hydrated from localStorage/cookies only after
+    // mount, so the first client render matches the empty server-rendered
+    // HTML and avoids a hydration mismatch.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState(loadState());
-    setHydrated(true);
+    setState((s) => ({ ...s, cart: loadCart() }));
+    (async () => {
+      const { user } = await api.me();
+      if (!user) {
+        setState((s) => ({ ...s, authLoading: false, user: null }));
+        return;
+      }
+      const appState = await api.state();
+      setState((s) => ({ ...applyAppState(s, appState), authLoading: false }));
+    })();
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state, hydrated]);
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.cart));
+  }, [state.cart]);
 
   const currentWeight = useMemo(() => {
     if (state.weightHistory.length === 0) return state.goal?.startWeightKg ?? 0;
     return state.weightHistory[state.weightHistory.length - 1].weightKg;
   }, [state.weightHistory, state.goal]);
 
-  const api: StoreApi = {
+  const refreshState = async () => {
+    const appState = await api.state();
+    setState((s) => applyAppState(s, appState));
+  };
+
+  const apiObj: StoreApi = {
     state,
     currentWeight,
 
-    setProfile: (name, gender, heightCm) => {
-      setState((s) => ({ ...s, profile: { name, gender, heightCm } }));
+    signup: async (input) => {
+      const { user } = await api.signup(input);
+      setState((s) => ({ ...s, user, authLoading: false }));
     },
 
-    setGoal: (startWeightKg, targetWeightKg, durationMonths) => {
-      const startDate = new Date();
-      const targetDate = new Date(startDate);
-      targetDate.setMonth(targetDate.getMonth() + durationMonths);
-      const goal: DietGoal = {
-        id: uid(),
+    login: async (username, password) => {
+      const { user } = await api.login(username, password);
+      setState((s) => ({ ...s, user, authLoading: false }));
+      await refreshState();
+    },
+
+    logout: async () => {
+      await api.logout();
+      setState((s) => ({ ...EMPTY_STATE, authLoading: false, cart: s.cart }));
+    },
+
+    refreshState,
+
+    updateProfile: async (input) => {
+      const { profile } = await api.updateProfile(input);
+      setState((s) => ({ ...s, user: profile }));
+    },
+
+    setGoal: async (startWeightKg, targetWeightKg, durationMonths) => {
+      const { goal, weightHistory } = await api.createGoal({
         startWeightKg,
         targetWeightKg,
         durationMonths,
-        startDate: startDate.toISOString(),
-        targetDate: targetDate.toISOString(),
-        status: "in_progress",
-      };
-      const entry: WeightEntry = {
-        id: uid(),
-        weightKg: startWeightKg,
-        measuredAt: startDate.toISOString(),
-      };
-      setState((s) => ({
-        ...s,
-        goal,
-        weightHistory: [entry],
-      }));
+      });
+      setState((s) => ({ ...s, goal, weightHistory }));
     },
 
-    updateWeight: (weightKg) => {
-      setState((s) => {
-        const entry: WeightEntry = {
-          id: uid(),
-          weightKg,
-          measuredAt: new Date().toISOString(),
-        };
-        let goal = s.goal;
-        let gifts = s.gifts;
-        if (goal && goal.status === "in_progress") {
-          const achieved =
-            goal.targetWeightKg <= goal.startWeightKg
-              ? weightKg <= goal.targetWeightKg
-              : weightKg >= goal.targetWeightKg;
-          if (achieved) {
-            goal = { ...goal, status: "achieved" };
-            const gift: Gift = {
-              id: uid(),
-              goalId: goal.id,
-              rule: "목표 체중 도달",
-              giftType: "쿠폰",
-              issuedAt: new Date().toISOString(),
-              status: "지급완료",
-            };
-            gifts = [...s.gifts, gift];
-          }
-        }
-        return {
-          ...s,
-          weightHistory: [...s.weightHistory, entry],
-          goal,
-          gifts,
-        };
-      });
+    updateWeight: async (weightKg) => {
+      const { weightHistory, goal, giftIssued, gifts } = await api.updateWeight(weightKg);
+      setState((s) => ({ ...s, weightHistory, goal, gifts }));
+      return { giftIssued };
     },
 
-    saveSnapshot: (note) => {
-      setState((s) => {
-        if (!s.profile || !s.goal) return s;
-        const weight =
-          s.weightHistory.length > 0
-            ? s.weightHistory[s.weightHistory.length - 1].weightKg
-            : s.goal.startWeightKg;
-        const heightM = s.profile.heightCm / 100;
-        const bmi = heightM > 0 ? weight / (heightM * heightM) : 0;
-        const snapshot: PlanSnapshot = {
-          id: uid(),
-          savedAt: new Date().toISOString(),
-          heightCm: s.profile.heightCm,
-          weightKg: weight,
-          goal: s.goal,
-          bmi,
-          note,
-        };
-        return { ...s, snapshots: [...s.snapshots, snapshot] };
-      });
+    saveSnapshot: async (note) => {
+      const { snapshots } = await api.saveSnapshot(note);
+      setState((s) => ({ ...s, snapshots }));
     },
 
     addToCart: (productId, qty = 1) => {
       setState((s) => {
         const existing = s.cart.find((c) => c.productId === productId);
-        let cart: CartItem[];
-        if (existing) {
-          cart = s.cart.map((c) =>
-            c.productId === productId ? { ...c, qty: c.qty + qty } : c
-          );
-        } else {
-          cart = [...s.cart, { productId, qty }];
-        }
+        const cart = existing
+          ? s.cart.map((c) =>
+              c.productId === productId ? { ...c, qty: c.qty + qty } : c
+            )
+          : [...s.cart, { productId, qty }];
         return { ...s, cart };
       });
     },
 
     removeFromCart: (productId) => {
-      setState((s) => ({
-        ...s,
-        cart: s.cart.filter((c) => c.productId !== productId),
-      }));
+      setState((s) => ({ ...s, cart: s.cart.filter((c) => c.productId !== productId) }));
     },
 
     updateCartQty: (productId, qty) => {
@@ -214,38 +192,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }));
     },
 
-    clearCart: () => setState((s) => ({ ...s, cart: [] })),
-
-    checkout: () => {
-      let created: Order | null = null;
-      setState((s) => {
-        if (s.cart.length === 0) return s;
-        const items: OrderItem[] = s.cart
-          .map((c) => {
-            const p = productById(c.productId);
-            if (!p) return null;
-            return { productId: p.id, name: p.name, price: p.price, qty: c.qty };
-          })
-          .filter((x): x is OrderItem => x !== null);
-        const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-        const order: Order = {
-          id: uid(),
-          goalId: s.goal?.id ?? null,
-          items,
-          totalPrice: total,
-          orderedAt: new Date().toISOString(),
-          status: "결제완료",
-        };
-        created = order;
-        return { ...s, cart: [], orders: [...s.orders, order] };
-      });
-      return created;
+    checkout: async () => {
+      if (state.cart.length === 0) return null;
+      const { orders, orderId } = await api.checkout(state.cart);
+      setState((s) => ({ ...s, orders, cart: [] }));
+      return orderId;
     },
-
-    resetAll: () => setState(EMPTY_STATE),
   };
 
-  return <StoreContext.Provider value={api}>{children}</StoreContext.Provider>;
+  return <StoreContext.Provider value={apiObj}>{children}</StoreContext.Provider>;
 }
 
 export function useStore(): StoreApi {

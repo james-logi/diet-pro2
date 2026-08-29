@@ -377,25 +377,6 @@ app.get("/api/orders/:id", async (c) => {
   return c.json({ order });
 });
 
-// Only unpaid orders can be deleted outright -- once money has moved, the
-// record has to stay (as 취소 via /cancel), not disappear.
-app.delete("/api/orders/:id", async (c) => {
-  const userId = c.get("userId");
-  const orderId = c.req.param("id");
-  const order = await getOrderByIdForUser(c.env.DB, orderId, userId);
-  if (!order) return c.json({ error: "주문을 찾을 수 없습니다." }, 404);
-  if (order.status !== "결제대기") {
-    return c.json({ error: "결제대기 상태의 주문만 삭제할 수 있습니다." }, 400);
-  }
-
-  await c.env.DB.batch([
-    c.env.DB.prepare(`DELETE FROM order_items WHERE order_id = ?`).bind(orderId),
-    c.env.DB.prepare(`DELETE FROM orders WHERE id = ?`).bind(orderId),
-  ]);
-
-  return c.json({ ok: true });
-});
-
 // Server-side confirmation with Toss: the client never sees the secret key,
 // and we re-check the order's owner + amount before approving anything.
 app.post("/api/payments/confirm", async (c) => {
@@ -450,8 +431,17 @@ app.post("/api/orders/:id/cancel", async (c) => {
 
   const order = await getOrderByIdForUser(c.env.DB, orderId, userId);
   if (!order) return c.json({ error: "주문을 찾을 수 없습니다." }, 404);
+
+  // Never charged, so there's nothing for Toss to cancel -- just mark it,
+  // keeping the record instead of deleting it outright.
+  if (order.status === "결제대기") {
+    await c.env.DB.prepare(`UPDATE orders SET status = '취소' WHERE id = ?`).bind(orderId).run();
+    const updated = await getOrderByIdForUser(c.env.DB, orderId, userId);
+    return c.json({ order: updated });
+  }
+
   if (order.status !== "결제완료" || !order.paymentKey) {
-    return c.json({ error: "결제완료 상태의 주문만 취소할 수 있습니다." }, 400);
+    return c.json({ error: "취소할 수 없는 주문 상태입니다." }, 400);
   }
 
   const tossRes = await fetch(

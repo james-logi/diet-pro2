@@ -107,9 +107,4 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ cancelReason }),
     }),
-
-  deleteOrder: (orderId: string) =>
-    request<{ ok: true }>(`/api/orders/${encodeURIComponent(orderId)}`, {
-      method: "DELETE",
-    }),
 };

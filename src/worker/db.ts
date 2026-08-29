@@ -15,6 +15,7 @@ export interface UserRow {
   gender: "M" | "F";
   height_cm: number;
   created_at: string;
+  is_admin: number;
 }
 
 export interface PublicUser {
@@ -23,6 +24,7 @@ export interface PublicUser {
   username: string;
   gender: "M" | "F";
   heightCm: number;
+  isAdmin: boolean;
 }
 
 export function toPublicUser(row: UserRow): PublicUser {
@@ -32,6 +34,7 @@ export function toPublicUser(row: UserRow): PublicUser {
     username: row.username,
     gender: row.gender,
     heightCm: row.height_cm,
+    isAdmin: !!row.is_admin,
   };
 }
 
@@ -155,6 +158,32 @@ export async function getOrderByIdForUser(
     .first<OrderRow>();
   if (!row) return null;
   return attachItems(db, row);
+}
+
+export interface AdminOrder extends Order {
+  userId: string;
+  userName: string;
+  username: string;
+}
+
+// Not user-scoped: only ever called behind the requireAdmin middleware.
+export async function getAllOrdersForAdmin(db: D1Database): Promise<AdminOrder[]> {
+  const { results: orderRows } = await db
+    .prepare(
+      `SELECT o.id, o.goal_id as goalId, o.total_price as totalPrice, o.ordered_at as orderedAt,
+              o.status, o.payment_key as paymentKey,
+              o.user_id as userId, u.name as userName, u.username as username
+       FROM orders o JOIN users u ON u.id = o.user_id
+       ORDER BY o.ordered_at DESC`
+    )
+    .all<OrderRow & { userId: string; userName: string; username: string }>();
+
+  const orders: AdminOrder[] = [];
+  for (const o of orderRows ?? []) {
+    const withItems = await attachItems(db, o);
+    orders.push({ ...withItems, userId: o.userId, userName: o.userName, username: o.username });
+  }
+  return orders;
 }
 
 export async function getGifts(db: D1Database, userId: string): Promise<Gift[]> {

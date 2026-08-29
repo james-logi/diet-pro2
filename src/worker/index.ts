@@ -11,6 +11,7 @@ import {
   getOrders,
   getOrderByIdForUser,
   getGifts,
+  getAllOrdersForAdmin,
   toPublicUser,
   UserRow,
 } from "./db";
@@ -52,6 +53,13 @@ const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();
 };
 
+// Runs after requireAuth, so c.get("userId") is already a verified session.
+const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const user = await getUserById(c.env.DB, c.get("userId"));
+  if (!user?.is_admin) return c.json({ error: "관리자만 접근할 수 있습니다." }, 403);
+  await next();
+};
+
 app.use("/api/state", requireAuth);
 app.use("/api/profile", requireAuth);
 app.use("/api/goal", requireAuth);
@@ -63,6 +71,7 @@ app.use("/api/orders/:id", requireAuth);
 app.use("/api/orders/:id/cancel", requireAuth);
 app.use("/api/payments/confirm", requireAuth);
 app.use("/api/gifts", requireAuth);
+app.use("/api/admin/orders", requireAuth, requireAdmin);
 
 async function setSessionCookie(c: Context<AppEnv>, userId: string) {
   const token = await signSession(userId, c.env.SESSION_SECRET);
@@ -495,6 +504,13 @@ app.post("/api/orders/:id/cancel", async (c) => {
 app.get("/api/gifts", async (c) => {
   const gifts = await getGifts(c.env.DB, c.get("userId"));
   return c.json({ gifts });
+});
+
+// ---------- Admin ----------
+
+app.get("/api/admin/orders", async (c) => {
+  const orders = await getAllOrdersForAdmin(c.env.DB);
+  return c.json({ orders });
 });
 
 // ---------- Workers AI: English product blurb ----------

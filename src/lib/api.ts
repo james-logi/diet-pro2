@@ -6,6 +6,13 @@ export interface PublicUser {
   username: string;
   gender: Gender;
   heightCm: number;
+  isAdmin: boolean;
+}
+
+export interface AdminOrder extends Order {
+  userId: string;
+  userName: string;
+  username: string;
 }
 
 export interface AppStatePayload {
@@ -113,4 +120,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ productId }),
     }),
+
+  adminOrders: () => request<{ orders: AdminOrder[] }>("/api/admin/orders"),
 };

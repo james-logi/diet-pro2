@@ -18,6 +18,9 @@ export default function Navbar() {
   const router = useRouter();
   const { state, logout } = useStore();
   const cartCount = state.cart.reduce((sum, c) => sum + c.qty, 0);
+  const navItems = state.user?.isAdmin
+    ? [...NAV, { href: "/admin/orders", label: "관리자" }]
+    : NAV;
 
   async function handleLogout() {
     await logout();
@@ -31,7 +34,7 @@ export default function Navbar() {
           💪 DIET PRO
         </Link>
         <nav className="flex items-center gap-1 text-sm">
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

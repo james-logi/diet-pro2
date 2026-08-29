@@ -208,6 +208,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const result = await api.createOrder(items);
       const orderedIds = new Set(items.map((i) => i.productId));
       setState((s) => ({ ...s, cart: s.cart.filter((c) => !orderedIds.has(c.productId)) }));
+      // The new (결제대기) order needs to show up in mypage right away,
+      // not just after the next full page load.
+      await refreshState();
       return result;
     },
 
